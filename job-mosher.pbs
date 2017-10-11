@@ -17,4 +17,5 @@ cd "$PBS_O_WORKDIR"
 export OMP_NUM_THREADS=8
 
 # Run the computations we want to.
-./mosher -f 1000
+./mosher -f 100
+./python visualize.py
