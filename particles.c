@@ -237,29 +237,6 @@ void compute_nbr_lists(particles_t* particles)
     }
 }
 
-/*
-void compute_nbr_lists(particles_t* particles)
-{
-    int* restrict cells = particles->cells;
-    int* restrict next  = particles->next;
-    float* restrict x = particles->x;
-    float L = particles->L;
-    int N = particles->N;
-    int nbinx = particles->nbinx;
-
-    // Recompute neighbor list
-    const int size_total = nbinx*nbinx;
-    memset(cells, -1, size_total * sizeof(int));
-    for (int i=0; i<N; i++) {
-        int binx = coord_to_index(x[2*i+0], nbinx, L);
-        int biny = coord_to_index(x[2*i+1], nbinx, L);
-        int t = binx + biny*nbinx;
-        next[i] = cells[t];
-        cells[t] = i;
-    }
-}
-*/
-
 void init_ric(particles_t* particles, float speed)
 {
     printf("Init ric\n");
@@ -304,7 +281,7 @@ void init_ric(particles_t* particles, float speed)
         p->fy = 0.0;
         p->fy = 0.0;
         p->type=type;
-        p->next = NULL;
+        p->next = -1;
 
         particles->particles[i] = *p;
 
@@ -367,7 +344,7 @@ void init_circle(particles_t* particles, float speed)
         p->fy = 0.0;
         p->fy = 0.0;
         p->type=type;
-        p->next = NULL;
+        p->next = -1;
 
         particles->particles[i] = *p;
 

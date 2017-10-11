@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     printf("Init\n");
     sim_param_t params;
     set_default_params(&params);
-    const char* ic_name = "ric";
+    const char* ic_name = "circle";
     fflush(stdout);
     int seed     = 0;      // Random seed
     int N        = 1000;   // Number of particles
