@@ -32,13 +32,30 @@ typedef struct particles_t {
     int nbinx;           // Number of bins per direction
     int N;               // Number of particles
     float L;             // Domain size
-    float* restrict x;   // Positions
-    float* restrict v;   // Velocities
-    float* restrict f;   // Forces
-    int* restrict type;  // Particle types
-    int* restrict cells; // Neighbor lists
-    int* restrict next;  // Next pointers
+    //float* restrict x;   // Positions
+    //float* restrict v;   // Velocities
+    //float* restrict f;   // Forces
+    //int* restrict type;  // Particle types
+    //int* restrict cells; // Neighbor lists
+
+    // particles array
+    // cells (particles**) array
+    struct particle_t** cells;
+    struct particle_t*  particles;  // Next pointers
 } particles_t;
+
+// ^ but without xvftype, have cells array and particles array
+
+typedef struct particle_t {
+    float x;                // position x
+    float y;                // position y
+    float vx;               // velocity x
+    float vy;               // velocity y
+    float fx;               // force x
+    float fy;               // force y
+    int type;               // Particle Type
+    struct particle_t * next;// Next particle
+} particle_t;
 
 /**
  * ## Particle structure memory management
@@ -46,6 +63,8 @@ typedef struct particles_t {
 
 particles_t* alloc_particles_t(int nbinx, int N, float L);
 void         free_particles_t(particles_t* particles);
+
+
 
 /**
  * ## Particle structure initialization
@@ -57,9 +76,11 @@ void         free_particles_t(particles_t* particles);
  * `speed` parameter indicates the preferred speed of the "red" (active)
  * moshers.
  */
-
+/*
 void init_ric   (particles_t* particles, float speed);
 void init_circle(particles_t* particles, float speed);
+*/
+
 
 /**
  * ## Particle I/O
@@ -79,7 +100,8 @@ void init_circle(particles_t* particles, float speed);
  */
 
 FILE* start_frames(const char* fname);
-void write_frame(FILE* fp, particles_t* particles);
+//void write_frame(FILE* fp, particles_t* particles);
+
 void end_frames(FILE* fp);
 
 /**
@@ -93,7 +115,14 @@ void end_frames(FILE* fp);
  * spatial locality, for example.
  */
 
+//void compute_nbr_lists(particles_t* particles);
+
+//particle_t** alloc_particle_t(int nbinx, int N, float L);
+//void         free_particle_t(particle_t** cells, int nbinx);
+void init_ric   (particles_t* particles, float speed);
+void init_circle(particles_t* particles, float speed);
 void compute_nbr_lists(particles_t* particles);
+void write_frame(FILE* fp, particles_t* particles);
 
 inline int coord_to_index(float x, int nbinx, float L)
 {

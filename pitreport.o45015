@@ -1,0 +1,17 @@
+
+Due to MODULEPATH changes, the following have been reloaded:
+  1) cmake/3.9.0     2) curl/7.54.0
+
+Init
+WUB LUB 1507745094.502939
+Simulation start: 
+L=57.731407 
+N=1000 
+nbinx=14 
+Cells allocated
+Init ric
+Cells initialized
+Simulation end
+Frame print end
+Cells deallocated
+DUB DUB 1507745095.169395

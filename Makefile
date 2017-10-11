@@ -1,8 +1,8 @@
 # standard compile options for the c++ executable
-CC = gcc
+CC = icc
 EXE = mosher
 OBJS =  main.o myrand.o particles.o physics.o
-CFLAGS = -O3 -Wall -g
+CFLAGS = -O3 -Wall -g -qopenmp -std=c99 
 LDFLAGS = -g
 LIBS = -lm
 
@@ -11,7 +11,7 @@ all: $(EXE)
 
 # the standard executable
 $(EXE): $(OBJS)
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
@@ -42,4 +42,4 @@ tidy:
 	@find | egrep ".txt" | xargs rm -f
 
 clean:
-	rm -f $(EXE) *.o
+	rm -rf $(EXE) *.o *.optrpt pitreport* particles.csv out.mp4 r000ah/ core.*

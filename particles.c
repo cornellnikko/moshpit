@@ -6,6 +6,20 @@
 #include <string.h>
 #include <math.h>
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
+#define PRINT_OPAQUE_STRUCT(p)  print_mem((p), sizeof(*(p)))
+
+void print_mem(void const *vp, size_t n)
+{
+    unsigned char const *p = vp;
+    for (size_t i=0; i<n; i++)
+        printf("%02x%s", p[i], i==0 ? "" : i % 16 == 15 ? "\n" : i % 4 == 3 ? " " : "");
+    putchar('\n');
+};
+
 //ldoc
 /**
  * # Particle data stucture implementation
@@ -23,7 +37,7 @@
  * 
  * ## Allocate and free particle data
  */
-
+/*
 particles_t* alloc_particles_t(int nbinx, int N, float L)
 {
     int size_total = nbinx*nbinx;
@@ -39,8 +53,9 @@ particles_t* alloc_particles_t(int nbinx, int N, float L)
     p->cells = (int*)   calloc(size_total, sizeof(int));
     return p;
 }
+*/
 
-
+/*
 void free_particles_t(particles_t* p)
 {
     free(p->cells);
@@ -50,7 +65,7 @@ void free_particles_t(particles_t* p)
     free(p->type);
     free(p);
 }
-
+*/
 
 /**
  * ## Neighbor list computations
@@ -62,7 +77,7 @@ void free_particles_t(particles_t* p)
  * for different particles; you may want to consider something that makes
  * better use of cache locality.
  */
-
+/*
 void compute_nbr_lists(particles_t* particles)
 {
     int* restrict cells = particles->cells;
@@ -83,7 +98,7 @@ void compute_nbr_lists(particles_t* particles)
         cells[t] = i;
     }
 }
-
+*/
 
 /**
  * ## Initialization
@@ -96,7 +111,7 @@ void compute_nbr_lists(particles_t* particles)
  * initial distribution.
  */
 
-
+/*
 void init_ric(particles_t* particles, float speed)
 {
     float* restrict x = particles->x;
@@ -158,20 +173,215 @@ void init_circle(particles_t* particles, float speed)
         }
     }
 }
+*/
 
 
-/**
- * ## I/O subsystem
- * 
- * The I/O subsystem writes out a text file with particle information;
- * given half a chance, this takes more time than just about anything else
- * in the simulation!  We could be somewhat more space efficient using
- * a binary format (and you are welcome to do so, though the visualizer
- * will need corresponding changes) -- but really, the "right" approach
- * is probably to moderate our desire to dump out too much information.
- * The pictures are pretty, but summary statistics are what the researchers
- * who designed this simulation were really after.
- */
+/* CELLS */
+
+particles_t* alloc_particles_t(int nbinx, int N, float L)
+{
+    int size_total = nbinx*nbinx;
+    particles_t* p = malloc(sizeof(particles_t));
+    p->nbinx = nbinx;
+    p->N = N;
+    p->L = L;
+    p->particles =  (particle_t*)   calloc(  N, sizeof(particle_t));
+
+    particle_t** cells = calloc(size_total, sizeof(particle_t));
+    //p->cells = (particle_t*)   calloc(size_total, sizeof(particle_t));
+    for(int i=0;i<size_total;i++)
+    {
+        cells[i] = 0;
+    }
+    p->cells=cells;
+    return p;
+}
+
+void free_particles_t(particles_t* p)
+{
+    free(p->cells);
+    free(p->particles);
+    free(p);
+}
+
+
+void compute_nbr_lists(particles_t* particles)
+{
+    //printf("---Compute Neighbor Lists\n");
+    //fflush(stdout);
+
+    int N = particles->N;
+    int nbinx = particles->nbinx;
+    float L = particles->L;
+    particle_t *p =  malloc(sizeof(particle_t));
+
+    // Recompute neighbor list
+    const int size_total = nbinx*nbinx;
+    memset(particles->cells, -1, size_total * sizeof(particle_t));
+    for(int i=0;i<N;i++) 
+    {        
+        p = &particles->particles[i];
+
+        int binx = coord_to_index(p->x, nbinx, L);
+        int biny = coord_to_index(p->y, nbinx, L);
+        int t = binx + biny*nbinx;
+        
+        //printf("Particle [%i] (%f,%f) Bin [%i]\n",i,p->x,p->y,t);
+        //fflush(stdout);
+
+        p->next = particles->cells[t];
+        particles->cells[t] = p;        
+        
+        //printf("Assigned %p to %p\n",p->next,particles->cells[t]);
+        //fflush(stdout);
+    }
+}
+
+/*
+void compute_nbr_lists(particles_t* particles)
+{
+    int* restrict cells = particles->cells;
+    int* restrict next  = particles->next;
+    float* restrict x = particles->x;
+    float L = particles->L;
+    int N = particles->N;
+    int nbinx = particles->nbinx;
+
+    // Recompute neighbor list
+    const int size_total = nbinx*nbinx;
+    memset(cells, -1, size_total * sizeof(int));
+    for (int i=0; i<N; i++) {
+        int binx = coord_to_index(x[2*i+0], nbinx, L);
+        int biny = coord_to_index(x[2*i+1], nbinx, L);
+        int t = binx + biny*nbinx;
+        next[i] = cells[t];
+        cells[t] = i;
+    }
+}
+*/
+
+void init_ric(particles_t* particles, float speed)
+{
+    printf("Init ric\n");
+    fflush(stdout);
+    
+    float x;
+    float y;
+    float vx;
+    float vy;
+    int type;
+
+    int binx;
+    int biny;
+    int t;
+
+    int N = particles->N;
+    int nbinx = particles->nbinx;
+    float L = particles->L;
+
+
+    for (int i=0; i<N; i++) {
+        float t = 2*M_PI*ran_ran2();
+
+        x = L*ran_ran2();
+        y = L*ran_ran2();
+
+        if (ran_ran2() > 0.16){
+            vx = 0.0;
+            vy = 0.0;
+            type = BLACK;
+        } else {
+            vx = speed * sin(t);
+            vy = speed * cos(t);
+            type = RED;
+        }
+
+        particle_t *p =  malloc(sizeof(particle_t));
+        p->x = x;
+        p->y = y;
+        p->vx = vx;
+        p->vy = vy;
+        p->fy = 0.0;
+        p->fy = 0.0;
+        p->type=type;
+        p->next = NULL;
+
+        particles->particles[i] = *p;
+
+
+        /* Needed?
+        binx = coord_to_index(x, nbinx, L);
+        biny = coord_to_index(y, nbinx, L);
+        t = binx + biny*nbinx;
+        p->next = p->cells[(int)t];
+        p->cells[(int)t] = p;
+        */
+        //printf("X=%f Y=%f at (%i,%i) in bin %i \n",p->x,p->y,binx,biny,(int)t);
+        //fflush(stdout);
+    }
+}
+
+void init_circle(particles_t* particles, float speed)
+{
+    int N = particles->N;
+    float L = particles->L;
+
+    float x;
+    float y;
+    float vx;
+    float vy;
+    int type;
+
+    int binx;
+    int biny;
+    int t;
+    
+    for (int i=0; i<N; i++){
+        float x = L*ran_ran2();
+        float y = L*ran_ran2();
+        float tt = 2*M_PI*ran_ran2();
+
+
+        // the radius for which 30% of the particles are red on avg
+        float dd2 = (x-L/2)*(x-L/2) + (y-L/2)*(y-L/2);
+        float rad2 = 0.16*L*L / M_PI;
+
+        if (dd2 < rad2)
+            type = RED;
+        else
+            type = BLACK;
+
+        if (type == RED) {
+            vx = speed*cos(tt);
+            vy = speed*sin(tt);
+        } else {
+            vx = 0.0;
+            vy = 0.0;
+        }
+
+        particle_t *p = (particle_t*)  calloc(1, sizeof(particle_t));
+        p->x = x;
+        p->y = y;
+        p->vx = vx;
+        p->vy = vy;
+        p->fy = 0.0;
+        p->fy = 0.0;
+        p->type=type;
+        p->next = NULL;
+
+        particles->particles[i] = *p;
+
+        /* Needed?
+        binx = coord_to_index(x, nbinx, L);
+        biny = coord_to_index(y, nbinx, L);
+        t = binx + biny*nbinx;
+        p->next = p->cells[(int)t];
+        p->cells[(int)t] = p;
+        */
+        //printf("X=%f Y=%f at (%i,%i) in bin %i \n",p->x,p->y,binx,biny,(int)t);
+        //fflush(stdout);
+    }
+}
 
 
 FILE* start_frames(const char* fname)
@@ -185,24 +395,18 @@ FILE* start_frames(const char* fname)
     return fp;
 }
 
-
-void write_frame(FILE* fp, particles_t* particles)
-{
-    float* x = particles->x;
-    float* v = particles->v;
-    int* tag = particles->type;
-    int n = particles->N;
-    float L = particles->L;
-    for (int i = 0; i < n; ++i) {
-        fprintf(fp, "%d,%d,%g,%g,%g,%g\n", tag[i], i+1,
-                x[2*i+0]/L, x[2*i+1]/L,
-                v[2*i+0]/L, v[2*i+1]/L);
-    }
-}
-
-
 void end_frames(FILE* fp)
 {
     fclose(fp);
 }
 
+void write_frame(FILE* fp, particles_t* particles)
+{
+    int n = particles->N;
+    float L = particles->L;
+    for (int i = 0; i < n; ++i) {
+        fprintf(fp, "%d,%d,%g,%g,%g,%g\n", particles->particles[i].type, i+1,
+                (particles->particles[i].x)/L, (particles->particles[i].y)/L,
+                (particles->particles[i].vx)/L, (particles->particles[i].vy)/L);
+    }
+}

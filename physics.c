@@ -6,6 +6,10 @@
 #include <float.h>
 #include <math.h>
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
 
 /**
  * # Physics implementation
@@ -27,7 +31,6 @@ void set_default_params(sim_param_t* p)
     p->sigma   = 0.1;
     p->damp    = 1.0;
 }
-
 
 /**
  * ## Helper functions
@@ -72,7 +75,7 @@ inline int mod_rvec(int a, int b, int *image)
  * the performance unless you first address the issues with the memory
  * access pattern.
  */
-
+/*
 void compute_forces(particles_t* particles, sim_param_t* params)
 {
     const float radius     = params->radius;
@@ -187,7 +190,7 @@ void compute_forces(particles_t* particles, sim_param_t* params)
         f[2*i+1] = fy;
     }
 }
-
+*/
 
 /**
  * ## Force computation function
@@ -202,7 +205,7 @@ void compute_forces(particles_t* particles, sim_param_t* params)
  * "wrapping around" the positions of any particles that move over the domain
  * boundary as the result of the time step.
  */
-
+/*
 void leapfrog_step(particles_t* restrict particles, float dt)
 {
     float* restrict x = particles->x;
@@ -224,6 +227,161 @@ void leapfrog_step(particles_t* restrict particles, float dt)
         for (int j=0; j<2; j++) {
             if (x[2*i+j] >= L*(1-FLT_EPSILON) || x[2*i+j] < FLT_EPSILON)
                 x[2*i+j] = mymod(x[2*i+j], L);
+        }
+    }
+}
+*/
+
+/* CELLS */
+void compute_forces(particles_t* particles, sim_param_t* params)
+{
+    const float radius     = params->radius;
+    const float epsilon    = params->epsilon;
+    const float vhappy_red = params->vhappy;
+    const float alpha      = params->alpha;
+    const float sigma      = params->sigma;
+    const float damp_coeff = params->damp;
+
+    const float R   = 2*radius;
+    const float R2  = R*R;
+    const float FR  = 2*R;
+    const float FR2 = FR*FR;
+
+    int N = particles->N;
+    int nbinx = particles->nbinx;
+    float L = particles->L;
+    int size_total = nbinx*nbinx;
+
+    //printf("---Compute Forces\n");
+    //fflush(stdout);
+
+    for(int i=0;i<size_total;i++) 
+    {
+        for(particle_t* p=particles->cells[i];p!=-1; p=p->next) 
+        {
+            //printf("Cell [%i] Particle at [%p] (%f,%f)\n",i,p,p->x,p->y);
+            //fflush(stdout);
+            float fx = 0.0;
+            float fy = 0.0;
+            float wx = 0.0;
+            float wy = 0.0;
+            float xi = p->x;
+            float yi = p->y;
+            int is_redi = (p->type == RED);
+
+            int binx = coord_to_index(xi, nbinx, L);
+            int biny = coord_to_index(yi, nbinx, L);
+
+            for (int ix=-1; ix<=1; ++ix) {
+            for (int iy=-1; iy<=1; ++iy) {
+
+                int imagex, imagey;
+                int jx = mod_rvec(binx+ix,nbinx,&imagex);
+                int jy = mod_rvec(biny+iy,nbinx,&imagey);
+
+                int ind = jx + jy*nbinx;
+                float xic = xi - (!imagex ? 0.0 : L*ix);
+                float yic = yi - (!imagey ? 0.0 : L*iy);
+
+                //for (int n=cells[ind]; n >= 0; n=next[n]) {
+
+                    // Distance to neighbor n
+                    float dx = p->x - xic;
+                    float dy = p->y - yic;
+                    float dist = dx*dx + dy*dy;
+
+                    if (dist > 1e-10) {
+                        //===============================================
+                        // force calculation - hertz
+                        if (dist < R2) {
+                            float l   = sqrtf(dist);
+                            float co1 = (1-l/R);
+                            float co  = epsilon * co1*sqrtf(co1);
+                            float c   = co/l;
+                            fx -= c * dx;
+                            fy -= c * dy;
+                        }
+
+                        //===============================================
+                        // add up the neighbor velocities
+                        if (is_redi && p->type == RED && dist < FR2) {
+                            wx += p->vx;
+                            wy += p->vy;
+                        }
+                    }
+                //}
+            } }
+
+            //=====================================
+            // flocking force
+            float wlen2 = wx*wx + wy*wy;
+            if (is_redi && wlen2 > 1e-12) {
+                float c = alpha / sqrtf(wlen2);
+                fx += c * wx;
+                fy += c * wy;
+            }
+
+            //====================================
+            // self-propulsion
+            float vx = p->vx;
+            float vy = p->vy;
+            float vlen2 = vx*vx + vy*vy;
+            if (vlen2 > 1e-12) {
+                float vhappy = is_redi * vhappy_red;
+                float vlen = sqrtf(vlen2);
+                float c = damp_coeff*(vhappy-vlen)/vlen;
+                fx += c * vx;
+                fy += c * vy;
+            }
+
+            //=======================================
+            // noise term
+            if (is_redi) {
+                // Box-Muller method
+                float u1 = ran_ran2();
+                float u2 = 2*M_PI*ran_ran2();
+                float lfac = sqrtf(-2*log(u1));
+                fx += sigma*lfac*cos(u2);
+                fy += sigma*lfac*sin(u2);
+            }
+            p->fx = fx;
+            p->fy = fy;
+            //printf("cell calc complete, going to: [%p]\n",p->next);
+            //fflush(stdout);
+        }
+    }
+}
+
+
+
+void leapfrog_step(particles_t* restrict particles,float dt)
+{
+
+    int N = particles->N;
+    int nbinx = particles->nbinx;
+    float L = particles->L;
+
+    //printf("---Leapfrog Step\n");
+    //fflush(stdout);
+
+    int size_total = nbinx*nbinx;
+
+    for(int i=0;i<size_total;i++) 
+    {
+        for(particle_t* p=particles->cells[i]; p!=-1; p=p->next) 
+        {
+            // Newton-Stomer-Verlet
+            p->vx += p->fx * dt;
+            p->vy += p->fy * dt;
+
+            p->x += p->vx * dt;
+            p->y += p->vy * dt;
+
+            if (p->x >= L*(1-FLT_EPSILON) || p->x < FLT_EPSILON)
+                    p->x = mymod(p->x, L);
+
+            if (p->y  >= L*(1-FLT_EPSILON) || p->y  < FLT_EPSILON)
+                    p->y = mymod(p->y, L);
         }
     }
 }
