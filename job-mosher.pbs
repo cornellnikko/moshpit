@@ -6,7 +6,7 @@
 # is rather simple.
 
 #PBS -l nodes=1:ppn=12
-#PBS -l walltime=0:02:00
+#PBS -l walltime=0:10:00
 #PBS -N pitreport
 #PBS -j oe
 
@@ -17,5 +17,4 @@ cd "$PBS_O_WORKDIR"
 export OMP_NUM_THREADS=8
 
 # Run the computations we want to.
-./mosher -f 100
-./python visualize.py
+./mosher -f 100 -N 1000

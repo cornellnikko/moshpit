@@ -255,12 +255,12 @@ void compute_forces(particles_t* particles, sim_param_t* params)
     //printf("---Compute Forces\n");
     //fflush(stdout);
 
+    #pragma omp for
     for(int i=0;i<size_total;i++) 
     {
         for(particle_t* p=particles->cells[i];p!=-1; p=p->next) 
         {
-            //printf("Cell [%i] Particle at [%p] (%f,%f)\n",i,p,p->x,p->y);
-            //fflush(stdout);
+
             float fx = 0.0;
             float fy = 0.0;
             float wx = 0.0;
@@ -269,48 +269,58 @@ void compute_forces(particles_t* particles, sim_param_t* params)
             float yi = p->y;
             int is_redi = (p->type == RED);
 
+            /*
+            if(!is_redi)
+            {
+                printf("CF Cell [%i] Particle at [%p] xy(%f,%f) v(%f,%f) f(%f,%f)\n",i,p,p->x,p->y,p->vx,p->vy,p->fx,p->fy);
+                fflush(stdout);
+            }
+            */
+
             int binx = coord_to_index(xi, nbinx, L);
             int biny = coord_to_index(yi, nbinx, L);
 
             for (int ix=-1; ix<=1; ++ix) {
-            for (int iy=-1; iy<=1; ++iy) {
+                for (int iy=-1; iy<=1; ++iy) {
 
-                int imagex, imagey;
-                int jx = mod_rvec(binx+ix,nbinx,&imagex);
-                int jy = mod_rvec(biny+iy,nbinx,&imagey);
+                    int imagex, imagey;
+                    int jx = mod_rvec(binx+ix,nbinx,&imagex);
+                    int jy = mod_rvec(biny+iy,nbinx,&imagey);
 
-                int ind = jx + jy*nbinx;
-                float xic = xi - (!imagex ? 0.0 : L*ix);
-                float yic = yi - (!imagey ? 0.0 : L*iy);
+                    int ind = jx + jy*nbinx;
+                    float xic = xi - (!imagex ? 0.0 : L*ix);
+                    float yic = yi - (!imagey ? 0.0 : L*iy);
 
-                //for (int n=cells[ind]; n >= 0; n=next[n]) {
+                    //for (int n=cells[ind]; n >= 0; n=next[n]) {
+                    for (particle_t *pz = particles->cells[ind];pz!=-1; pz=pz->next) {
 
-                    // Distance to neighbor n
-                    float dx = p->x - xic;
-                    float dy = p->y - yic;
-                    float dist = dx*dx + dy*dy;
+                        // Distance to neighbor n
+                        float dx = pz->x - xic;
+                        float dy = pz->y - yic;
+                        float dist = dx*dx + dy*dy;
 
-                    if (dist > 1e-10) {
-                        //===============================================
-                        // force calculation - hertz
-                        if (dist < R2) {
-                            float l   = sqrtf(dist);
-                            float co1 = (1-l/R);
-                            float co  = epsilon * co1*sqrtf(co1);
-                            float c   = co/l;
-                            fx -= c * dx;
-                            fy -= c * dy;
-                        }
+                        if (dist > 1e-10) {
+                            //===============================================
+                            // force calculation - hertz
+                            if (dist < R2) {
+                                float l   = sqrtf(dist);
+                                float co1 = (1-l/R);
+                                float co  = epsilon * co1*sqrtf(co1);
+                                float c   = co/l;
+                                fx -= c * dx;
+                                fy -= c * dy;
+                            }
 
-                        //===============================================
-                        // add up the neighbor velocities
-                        if (is_redi && p->type == RED && dist < FR2) {
-                            wx += p->vx;
-                            wy += p->vy;
+                            //===============================================
+                            // add up the neighbor velocities
+                            if (is_redi && pz->type == RED && dist < FR2) {
+                                wx += pz->vx;
+                                wy += pz->vy;
+                            }
                         }
                     }
-                //}
-            } }
+                } 
+            }
 
             //=====================================
             // flocking force
@@ -346,13 +356,11 @@ void compute_forces(particles_t* particles, sim_param_t* params)
             }
             p->fx = fx;
             p->fy = fy;
-            //printf("cell calc complete, going to: [%p]\n",p->next);
+            //printf("cell (%i) calc complete (%f,%f), going to: [%p]\n",p->type,p->fx,p->fy,p->next);
             //fflush(stdout);
         }
     }
 }
-
-
 
 void leapfrog_step(particles_t* restrict particles,float dt)
 {
@@ -366,6 +374,7 @@ void leapfrog_step(particles_t* restrict particles,float dt)
 
     int size_total = nbinx*nbinx;
 
+    #pragma omp for
     for(int i=0;i<size_total;i++) 
     {
         for(particle_t* p=particles->cells[i]; p!=-1; p=p->next) 
@@ -377,11 +386,22 @@ void leapfrog_step(particles_t* restrict particles,float dt)
             p->x += p->vx * dt;
             p->y += p->vy * dt;
 
+            int is_redi = (p->type == RED);
+
             if (p->x >= L*(1-FLT_EPSILON) || p->x < FLT_EPSILON)
                     p->x = mymod(p->x, L);
 
             if (p->y  >= L*(1-FLT_EPSILON) || p->y  < FLT_EPSILON)
                     p->y = mymod(p->y, L);
+
+            /*
+            if(!is_redi)
+            {
+                printf("LF Cell [%i] Particle at [%p] xy(%f,%f) v(%f,%f) f(%f,%f)\n",i,p,p->x,p->y,p->vx,p->vy,p->fx,p->fy);
+                fflush(stdout);
+            }
+            */
+
         }
     }
 }

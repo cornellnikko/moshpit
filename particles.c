@@ -239,7 +239,7 @@ void compute_nbr_lists(particles_t* particles)
 
 void init_ric(particles_t* particles, float speed)
 {
-    printf("Init ric\n");
+    //printf("Init ric\n");
     fflush(stdout);
     
     float x;
@@ -273,7 +273,7 @@ void init_ric(particles_t* particles, float speed)
             type = RED;
         }
 
-        particle_t *p =  malloc(sizeof(particle_t));
+        particle_t *p = &particles->particles[i];
         p->x = x;
         p->y = y;
         p->vx = vx;
@@ -283,16 +283,15 @@ void init_ric(particles_t* particles, float speed)
         p->type=type;
         p->next = -1;
 
-        particles->particles[i] = *p;
+        //particles->particles[i] = *p;
 
-
-        /* Needed?
+        
         binx = coord_to_index(x, nbinx, L);
         biny = coord_to_index(y, nbinx, L);
         t = binx + biny*nbinx;
-        p->next = p->cells[(int)t];
-        p->cells[(int)t] = p;
-        */
+        //particles->particles[i].next = particles->cells[t];
+        //particles->cells[t] = &particles->particles[i];
+        
         //printf("X=%f Y=%f at (%i,%i) in bin %i \n",p->x,p->y,binx,biny,(int)t);
         //fflush(stdout);
     }
@@ -302,6 +301,7 @@ void init_circle(particles_t* particles, float speed)
 {
     int N = particles->N;
     float L = particles->L;
+    int nbinx = particles->nbinx;
 
     float x;
     float y;
@@ -321,6 +321,7 @@ void init_circle(particles_t* particles, float speed)
 
         // the radius for which 30% of the particles are red on avg
         float dd2 = (x-L/2)*(x-L/2) + (y-L/2)*(y-L/2);
+        //float rad2 = 0.9*L*L / M_PI;
         float rad2 = 0.16*L*L / M_PI;
 
         if (dd2 < rad2)
@@ -336,7 +337,7 @@ void init_circle(particles_t* particles, float speed)
             vy = 0.0;
         }
 
-        particle_t *p = (particle_t*)  calloc(1, sizeof(particle_t));
+        particle_t *p = &particles->particles[i];
         p->x = x;
         p->y = y;
         p->vx = vx;
@@ -346,15 +347,15 @@ void init_circle(particles_t* particles, float speed)
         p->type=type;
         p->next = -1;
 
-        particles->particles[i] = *p;
+        //particles->particles[i] = *p;
 
-        /* Needed?
+        
         binx = coord_to_index(x, nbinx, L);
         biny = coord_to_index(y, nbinx, L);
         t = binx + biny*nbinx;
-        p->next = p->cells[(int)t];
-        p->cells[(int)t] = p;
-        */
+        particles->particles[i].next = particles->cells[t];
+        particles->cells[t] = &particles->particles[i];
+        
         //printf("X=%f Y=%f at (%i,%i) in bin %i \n",p->x,p->y,binx,biny,(int)t);
         //fflush(stdout);
     }

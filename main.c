@@ -45,6 +45,8 @@ void simulate(sim_param_t* params,   // Physics parameters
 
     FILE* fp = start_frames("particles.csv");
     int frames = 0;
+    #pragma omp parallel
+    {
     for (float t=0.0; t < tfinal; t += dt) {
         if (rendert > 0 && frames % rendert == 0)
             write_frame(fp, particles);
@@ -53,6 +55,7 @@ void simulate(sim_param_t* params,   // Physics parameters
         compute_forces(particles, params);
         leapfrog_step(particles, dt);
         ++frames;
+    }
     }
     printf("Simulation end\n");
     fflush(stdout);
@@ -131,7 +134,9 @@ int main(int argc, char **argv)
 
     ran_seed(seed);
     //simulate(&params, ic_name, N, rendert, tfinal, dt);
-    simulate(&params, ic_name, N, rendert, tfinal, dt);
+    
+        simulate(&params, ic_name, N, rendert, tfinal, dt);
+
 
 	printf("DUB DUB %f\n",omp_get_wtime());
 
