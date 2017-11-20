@@ -18,3 +18,4 @@ export OMP_NUM_THREADS=8
 
 # Run the computations we want to.
 ./mosher -f 100 -N 1000
+echo "done";
